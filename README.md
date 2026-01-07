@@ -1,4 +1,4 @@
-# Shelly Pro 3EM – Phase-Balanced Energy Calculation
+# Shelly Pro 3EM – net metering (Saldierung)
 
 ## Overview
 
