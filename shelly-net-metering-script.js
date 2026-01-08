@@ -196,28 +196,32 @@ function ensureVirtualNumberComponent(id, key, expectedName, cb) {
                     },
                     function (_res, err) {
                         if (err) {
-                            log("Virtual.Add failed for", key, JSON.stringify(err));
+                            log("Virtual.Add failed for", key, "error:", JSON.stringify(err));
                             cb(false);
                             return;
                         }
+                        log("Virtual number created:", key, "name:", expectedName);
                         cb(true);
                     }
                 );
             }
 
             if (!existing) {
+                log("Virtual number", key, "not found, creating new");
                 createNew();
                 return;
             }
 
             let name = existing.config ? existing.config.name : null;
             if (name !== expectedName) {
+                log("Virtual number", key, "exists but name differs:", name, "-> recreating");
                 Shelly.call("Virtual.Delete", { key: key }, function () {
                     createNew();
                 });
                 return;
             }
 
+            log("Virtual number", key, "already exists with correct name:", name);
             cb(true);
         }
     );
@@ -242,6 +246,7 @@ function ensureVirtualGroupComponent(id, key, expectedName, members, cb) {
                     { id: id, config: { name: expectedName } },
                     function () {
                         Shelly.call("Group.Set", { id: id, value: members }, function () {
+                            log("Group configured:", key, "name:", expectedName, "members:", JSON.stringify(members));
                             cb(true);
                         });
                     }
@@ -253,6 +258,7 @@ function ensureVirtualGroupComponent(id, key, expectedName, members, cb) {
                     "Virtual.Add",
                     { type: "group", id: id, config: { name: expectedName } },
                     function () {
+                        log("Group created:", key, "name:", expectedName);
                         configure();
                     }
                 );
@@ -260,17 +266,20 @@ function ensureVirtualGroupComponent(id, key, expectedName, members, cb) {
 
             let name = existing && existing.config ? existing.config.name : null;
             if (!existing) {
+                log("Group", key, "not found, creating new");
                 createNew();
                 return;
             }
 
             if (name !== expectedName) {
+                log("Group", key, "exists but name differs:", name, "-> recreating");
                 Shelly.call("Virtual.Delete", { key: key }, function () {
                     createNew();
                 });
                 return;
             }
 
+            log("Group", key, "already exists with correct name:", name);
             configure();
         }
     );
@@ -356,6 +365,12 @@ function startBaselineIfNeeded(t, r) {
 
         delta_energy_integrate_wh = 0.0;
         delta_energy_ret_integrate_wh = 0.0;
+
+        log(
+            "Baseline initialized:",
+            "baseline_total_energy_wh =", baseline_total_energy_wh,
+            "baseline_total_energy_ret_wh =", baseline_total_energy_ret_wh
+        );
     }
 }
 
@@ -375,6 +390,12 @@ function updateTotalsChangeDetection(t, r) {
         totals_last_change_uptime_ms = getUptimeMs();
         last_seen_total_energy_wh = t;
         last_seen_total_energy_ret_wh = r;
+
+        log(
+            "Totals changed:",
+            "total_energy_wh:", t,
+            "total_energy_ret_wh:", r
+        );
     }
 }
 
@@ -412,6 +433,19 @@ function applyCorrectionIfReady(t, r) {
 
     if (net_metered_energy_handle) net_metered_energy_handle.setValue(net_metered_energy_wh);
     if (net_metered_energy_ret_handle) net_metered_energy_ret_handle.setValue(net_metered_energy_ret_wh);
+
+    log(
+        "Correction applied:",
+        "correction_factor =", k,
+        "delta_total_energy_wh =", dt_total,
+        "delta_total_energy_ret_wh =", dt_ret_total,
+        "sum_total =", sum_total,
+        "sum_integrated =", sum_integrated,
+        "delta_energy_integrate_corrected =", dt_int,
+        "delta_energy_ret_integrate_corrected =", dt_ret_int,
+        "net_metered_energy_wh (new) =", net_metered_energy_wh,
+        "net_metered_energy_ret_wh (new) =", net_metered_energy_ret_wh
+    );
 
     baseline_total_energy_wh = t;
     baseline_total_energy_ret_wh = r;
@@ -466,6 +500,12 @@ function loadPersisted() {
 
     net_metered_energy_wh = (s1 && isNumber(s1.value)) ? s1.value : 0.0;
     net_metered_energy_ret_wh = (s2 && isNumber(s2.value)) ? s2.value : 0.0;
+
+    log(
+        "Startup values loaded:",
+        "net_metered_energy_wh =", net_metered_energy_wh,
+        "net_metered_energy_ret_wh =", net_metered_energy_ret_wh
+    );
 }
 
 /**
@@ -503,6 +543,8 @@ function start() {
 
                             Timer.set(INTEGRATION_TICK_MS, true, integrationTick);
                             Timer.set(TOTALS_TICK_MS, true, totalsTick);
+
+                            log("Net metering script started");
                         }
                     );
                 }
